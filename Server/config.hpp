@@ -13,19 +13,14 @@ using namespace std;
 #include <SFML/Graphics.hpp>
 using namespace sf;
 
-TcpSocket* findUserSocket(string);
-void disconnect(TcpSocket*);
-void sendToAll(string str, TcpSocket* sender = NULL, bool skipSender = false);
-bool sendToUser(string, string);
+#include <Server/server.hpp>
 
 class Global
 {
 public:
     static Global* instance;
 
-    vector<pair<string,TcpSocket*>> sockets;
-    SocketSelector selector;
-    TcpListener server;
+    Server* server;
 };
 
 

@@ -5,14 +5,19 @@ using namespace std;
 
 bool appRunning = true;
 bool running = true;
-string logstr;
-string chatString;
+sf::String logstr;
+sf::String chatString;
 TcpSocket sck;
-vector<string> issuedCommands;
+vector<sf::String> issuedCommands;
 int cmdIndex = -1;
+sf::Mutex mutex;
+View wndView(FloatRect(0.f, 0.f, 500.f, 500.f));
+RenderWindow wnd;
+int caretPos = 0;
 
 void send()
 {
+    sf::Lock lock(mutex);
     if(chatString == "\\\\")
     {
         running = false;
@@ -30,13 +35,36 @@ void send()
     }
 }
 
+void network()
+{
+    while(running)
+    {
+        Packet packet2;
+
+        if(sck.receive(packet2) == Socket::Done)
+        {
+            sf::Lock lock(mutex);
+            sf::String text;
+            if(packet2 >> text)
+            {
+                logstr += (text + "\n");
+                wndView = View(FloatRect(0.f, 0.f, wnd.getSize().x, wnd.getSize().y));
+            }
+        }
+        else
+        {
+            running = false;
+            sck.disconnect();
+        }
+    }
+}
+
 void loop()
 {
-    RenderWindow wnd(VideoMode(500, 500), "SPPMsg Client");
+    wnd.create(VideoMode(500, 500), "SPPMsg Client");
     wnd.setFramerateLimit(60);
     Font font;
     font.loadFromFile("font.ttf");
-    View wndView(FloatRect(0.f, 0.f, 500.f, 500.f));
     wnd.setView(wndView);
     wnd.setKeyRepeatEnabled(true);
     View guiView(FloatRect(0.f, 0.f, 500.f, 500.f));
@@ -59,70 +87,88 @@ void loop()
                 send();
                 issuedCommands.push_back(chatString);
                 chatString = "";
+                caretPos = 0;
             }
             else if(e.type == Event::TextEntered)
             {
-                if(e.text.unicode == '\b')
-                    chatString.assign(chatString.substr(0,chatString.size() - 1));
+                if(e.text.unicode == 8)
+                {
+                    if(caretPos > 0)
+                    {
+                        chatString.erase(caretPos - 1);
+                        caretPos--;
+                    }
+                }
                 else if(e.text.unicode > 0x1F)
-                    chatString.append({char(e.text.unicode & 0xFF)});
+                {
+                    chatString.insert(caretPos, e.text.unicode);
+                    caretPos += 1;
+                }
 
                 cmdIndex = -1;
             }
-            if(e.type == Event::KeyPressed && e.key.code == Keyboard::Up)
+            if(e.type == Event::KeyPressed)
             {
-                if(!issuedCommands.empty())
+                if(e.key.code == Keyboard::Up)
                 {
-                    if(cmdIndex == -1)
+                    if(!issuedCommands.empty())
                     {
-                        cmdIndex = issuedCommands.size()-1;
-                        chatString = issuedCommands[cmdIndex];
-                    }
-                    else
-                    {
-                        if(cmdIndex != 0)
-                            cmdIndex--;
+                        if(cmdIndex == -1)
+                        {
+                            cmdIndex = issuedCommands.size()-1;
+                            chatString = issuedCommands[cmdIndex];
+                            caretPos = chatString.getSize();
+                        }
+                        else
+                        {
+                            if(cmdIndex != 0)
+                                cmdIndex--;
 
-                        chatString = issuedCommands[cmdIndex];
+                            chatString = issuedCommands[cmdIndex];
+                            caretPos = chatString.getSize();
+                        }
                     }
                 }
-            }
-            if(e.type == Event::KeyPressed && e.key.code == Keyboard::Down)
-            {
-                if(!issuedCommands.empty())
+                else if(e.key.code == Keyboard::Down)
                 {
-                    if(cmdIndex < issuedCommands.size()-1)
+                    if(!issuedCommands.empty())
                     {
-                        cmdIndex++;
-                        chatString = issuedCommands[cmdIndex];
+                        if(cmdIndex < issuedCommands.size()-1)
+                        {
+                            cmdIndex++;
+                            chatString = issuedCommands[cmdIndex];
+                            caretPos = chatString.getSize();
+                        }
+                        else
+                        {
+                            cmdIndex = -1;
+                            chatString = "";
+                            caretPos = 0;
+                        }
                     }
-                    else
-                    {
-                        cmdIndex = -1;
-                        chatString = "";
-                    }
+                }
+                else if(e.key.code == Keyboard::Left)
+                {
+                    if(caretPos > 0)
+                        caretPos--;
+                }
+                else if(e.key.code == Keyboard::Right)
+                {
+                    if(caretPos <= chatString.getSize())
+                        caretPos++;
                 }
             }
         }
 
-        Packet packet2;
-
-        if(sck.receive(packet2) == Socket::Done)
         {
-            string text;
-            if(packet2 >> text)
-            {
-                logstr += (text + "\n");
-                wndView = View(FloatRect(0.f, 0.f, wnd.getSize().x, wnd.getSize().y));
-            }
+            sf::Lock lock(mutex);
+            wnd.clear(Color::White);
+            wnd.setView(wndView);
+            Text tx(logstr, font, 16);
+            tx.setPosition(2, wnd.getView().getSize().y-tx.getLocalBounds().height-50.f);
+            tx.setFillColor(Color::Black);
+            wnd.draw(tx);
         }
-
-        wnd.clear(Color::White);
-        wnd.setView(wndView);
-        Text tx(logstr, font, 16);
-        tx.setPosition(2, wnd.getView().getSize().y-tx.getLocalBounds().height-50.f);
-        tx.setFillColor(Color::Black);
-        wnd.draw(tx);
 
         wnd.setView(guiView);
         RectangleShape rs(Vector2f(wnd.getView().getSize().x, 50.f));
@@ -137,7 +183,7 @@ void loop()
         wnd.draw(tx2);
 
         RectangleShape rs2(Vector2f(3.f, 25.f));
-        rs2.setPosition(tx2.findCharacterPos(chatString.size()));
+        rs2.setPosition(tx2.findCharacterPos(caretPos));
         rs2.setFillColor(time(NULL) % 2 == 0 ? Color::Transparent : Color::Black);
         wnd.draw(rs2);
 
@@ -183,8 +229,6 @@ int main(int argc, char* argv[])
             if(!skipConnect)
                 status = sck.connect(ip, port);
 
-            sck.setBlocking(false);
-
             if(status != Socket::Done)
             {
                 cout << "Error: " << ((status==Socket::Disconnected ? "Disconnected" :
@@ -220,6 +264,9 @@ int main(int argc, char* argv[])
 
         Thread guiThread(loop);
         guiThread.launch();
+        Thread networkThread(network);
+        networkThread.launch();
+
         guiThread.wait();
     }
 

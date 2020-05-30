@@ -13,7 +13,7 @@ macro(st2_link_sfml target)
 endmacro()
 
 macro(cg_link_common target)
-	target_include_directories(${target} PUBLIC "${CMAKE_SOURCE_DIR}/src/")
+	target_include_directories(${target} PUBLIC "${CMAKE_SOURCE_DIR}")
 	#target_include_directories(${target} PUBLIC "${CMAKE_SOURCE_DIR}/cgui_fork/include")
 	#target_include_directories(${target} PUBLIC "${CMAKE_SOURCE_DIR}/hmutil/include")
 	st2_link_sfml(${target})

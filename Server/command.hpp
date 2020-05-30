@@ -5,10 +5,8 @@
 class Command
 {
 public:
-    string cmd;
-    vector<string> args;
+    sf::String cmd;
+    vector<sf::String> args;
 
-    static Command parseCommand(string cmds);
+    static Command parseCommand(sf::String cmds);
 };
-
-void command(Command&, string);

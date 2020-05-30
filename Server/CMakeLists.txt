@@ -2,12 +2,14 @@
 # Sppmacd (c) 2020
 
 set(SOURCES
-	clients.cpp
+	config.hpp
+	client.cpp
+	client.hpp
 	command.cpp
 	command.hpp
-	config.hpp
 	main.cpp
-	send.cpp
+	server.cpp
+	server.hpp
 )
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
