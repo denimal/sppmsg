@@ -181,6 +181,9 @@ void Server::select()
                         sf::String str;
                         packet >> str;
 
+                        if(str.empty())
+                            continue;
+
                         if(str[0] == '/')
                         {
                             cout << "'" << pr.second->getName().toAnsiString() << "' issued command: " << str.toAnsiString() << endl;
