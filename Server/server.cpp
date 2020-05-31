@@ -88,63 +88,98 @@ void Server::command(Client* client, Command& command)
             sf::String str = client->getName();
             client->setName(command.args[0]);
 
-            if(client->getName() != "User")
+            if(str != "User")
                 sendToAll("'" + str + "' changed username to '" + client->getName() + "'", NULL);
             else
                 sendToAll("'" + client->getName() + "' connected", NULL);
         }
     }
-    else if(command.cmd == "msg")
-    {
-        if(command.args.size() < 2)
-		{
-            client->send("Usage: /msg <username> <text...>");
-			return;
-		}
-
-        sf::String str2;
-        for(int i = 1; i < command.args.size(); i++)
-        {
-            str2 += (command.args[i] + " ");
-        }
-        Client* client2 = getClientByName(command.args[0]);
-        if(!client2)
-            client->send("Username not found: '" + command.args[0] + "'");
-        else
-            sendTo(client2, "["+client->getName()+"] "+str2);
-
-        if(client2 != client)
-            client->send("["+client->getName()+"] "+str2);
-    }
-    else if(command.cmd == "list")
-    {
-        if(command.args.size() != 0)
-        {
-            client->send("Usage: /list");
-        }
-        else
-        {
-            sf::String playersstr;
-            client->send("In this server currently are: ");
-            int i = 0;
-
-            for(auto& pr: clients)
-            {
-                playersstr += pr.second->getName();
-                if(i != clients.size() - 1)
-                    playersstr += ", ";
-                i++;
-            }
-            client->send(playersstr + ".");
-        }
-    }
-    else if(command.cmd == "help")
-    {
-        client->send("Commands: /help, /msg, /username, /list");
-    }
     else
     {
-        client->send("Unknown Command! Type /help to get list of commands.");
+        if(client->getName() != "User")
+        {
+            if(command.cmd == "msg")
+            {
+                if(command.args.size() < 2)
+                {
+                    client->send("Usage: /msg <username> <text...>");
+                    return;
+                }
+
+                sf::String str2;
+                for(int i = 1; i < command.args.size(); i++)
+                {
+                    str2 += (command.args[i] + " ");
+                }
+                Client* client2 = getClientByName(command.args[0]);
+                if(!client2)
+                    client->send("Username not found: '" + command.args[0] + "'");
+                else
+                    sendTo(client2, "["+client->getName()+"] "+str2);
+
+                if(client2 != client)
+                    client->send("["+client->getName()+"] "+str2);
+            }
+            else if(command.cmd == "list")
+            {
+                if(command.args.size() != 0)
+                {
+                    client->send("Usage: /list");
+                }
+                else
+                {
+                    sf::String usersstr;
+                    client->send("In this server currently are: ");
+                    int i = 0;
+
+                    for(auto& pr: clients)
+                    {
+                        usersstr += pr.second->getName();
+                        if(i != clients.size() - 1)
+                            usersstr += ", ";
+                        i++;
+                    }
+                    client->send(usersstr + ".");
+                }
+            }
+            else if(command.cmd == "help")
+            {
+                client->send("Commands: /help, /msg, /username, /list, /kick");
+            }
+            else if(command.cmd == "kick")
+            {
+                if(command.args.size() < 1)
+                {
+                    client->send("Usage: /kick <user> [reason...]");
+                }
+                sf::String userName = command.args[0];
+
+                sf::String reason = "Reason not given";
+                if(command.args.size() >= 2)
+                {
+                    reason.clear();
+                    for(int i = 1; i < command.args.size(); i++)
+                    {
+                        reason += (command.args[i] + " ");
+                    }
+                }
+
+                Client* kicked = getClientByName(userName);
+                if(kicked)
+                {
+                    sendToAll("Kicked user: " + userName, kicked);
+                    kickClient(kicked, "You was kicked from the server (" + reason + ")");
+                }
+            }
+            else
+            {
+                client->send("Unknown Command! Type /help to get list of commands.");
+            }
+        }
+        else
+        {
+            client->send("You are not logged in. Only logged in users can issue commands. Try /username <nick>.");
+        }
     }
 }
 void Server::select()
@@ -181,7 +216,7 @@ void Server::select()
                         sf::String str;
                         packet >> str;
 
-                        if(str.empty())
+                        if(str.isEmpty())
                             continue;
 
                         if(str[0] == '/')
