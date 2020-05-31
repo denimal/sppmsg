@@ -10,3 +10,6 @@ My goal is to make this:
 * integrated - support for many protocols (soon...)
 
 Note that there is a lot of refactoring to do...
+* protocol documentation
+* better Client GUI
+* Server refactoring
