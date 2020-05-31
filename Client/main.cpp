@@ -5,7 +5,8 @@ using namespace std;
 
 bool appRunning = true;
 bool running = true;
-sf::String logstr;
+vector<sf::String> logstr;
+vector<sf::String> logstrTmp;
 sf::String chatString;
 TcpSocket sck;
 vector<sf::String> issuedCommands;
@@ -13,7 +14,48 @@ int cmdIndex = -1;
 sf::Mutex mutex;
 View wndView(FloatRect(0.f, 0.f, 500.f, 500.f));
 RenderWindow wnd;
+Font font;
 int caretPos = 0;
+
+void updateLogStr();
+
+void appendLogStr(sf::String str)
+{
+    if(str.isEmpty())
+        return;
+
+    logstrTmp.push_back(str);
+    updateLogStr();
+}
+
+// called on resize or new log entry
+// keep only 100 latest strings now
+// TODO: implement scrolling back
+void updateLogStr()
+{
+    /*
+    std::vector<sf::String> newLogStr;
+    for(int j = logstrTmp.size() - min(logstrTmp.size(), (size_t)100); j < logstrTmp.size(); j++)
+    {
+        sf::String& str = logstrTmp[j];
+        sf::Text text(str, font, 16);
+        for(int i = 0; i < str.getSize(); i++)
+        {
+            size_t s1 = text.findCharacterPos(i + 1).x;
+            size_t s2 = wndView.getSize().x;
+            if(s1 > s2 || str[i] == '\n')
+            {
+                newLogStr.push_back(str);
+                str = str.substring(i + 1);
+                i = 0;
+            }
+        }
+        if(!str.isEmpty())
+            newLogStr.push_back(str);
+    }
+    */
+    logstr = logstrTmp;
+}
 
 void send()
 {
@@ -29,9 +71,9 @@ void send()
         packet << chatString;
         Socket::Status status1 = sck.send(packet);
         if(status1 == Socket::Disconnected)
-            logstr += "Server closed!\n";
+            appendLogStr("Server closed!\n");
         else if(status1 == Socket::Error)
-            logstr += "Unexpected error while sending data!\n";
+            appendLogStr("Unexpected error while sending data!\n");
     }
 }
 
@@ -47,8 +89,9 @@ void network()
             sf::String text;
             if(packet2 >> text)
             {
-                logstr += (text + "\n");
+                appendLogStr(text + "\n");
                 wndView = View(FloatRect(0.f, 0.f, wnd.getSize().x, wnd.getSize().y));
+                updateLogStr();
             }
         }
         else
@@ -63,7 +106,6 @@ void loop()
 {
     wnd.create(VideoMode(500, 500), "SPPMsg Client");
     wnd.setFramerateLimit(60);
-    Font font;
     font.loadFromFile("font.ttf");
     wnd.setView(wndView);
     wnd.setKeyRepeatEnabled(true);
@@ -80,6 +122,7 @@ void loop()
             {
                 wndView.reset(FloatRect(0.f, 0.f, e.size.width, e.size.height));
                 guiView.reset(FloatRect(0.f, 0.f, e.size.width, e.size.height));
+                updateLogStr();
             }
 
             if(e.type == Event::KeyPressed && e.key.code == Keyboard::Return)
@@ -164,10 +207,13 @@ void loop()
             sf::Lock lock(mutex);
             wnd.clear(Color::White);
             wnd.setView(wndView);
-            Text tx(logstr, font, 16);
-            tx.setPosition(2, wnd.getView().getSize().y-tx.getLocalBounds().height-50.f);
-            tx.setFillColor(Color::Black);
-            wnd.draw(tx);
+            for(int i = 0; i < logstr.size(); i++)
+            {
+                Text tx(logstr[logstr.size() - i - 1], font, 16);
+                tx.setPosition(2, (wnd.getView().getSize().y - tx.getLocalBounds().height - 50.f - 20.f * i));
+                tx.setFillColor(Color::Black);
+                wnd.draw(tx);
+            }
         }
 
         wnd.setView(guiView);
@@ -258,14 +304,14 @@ int main(int argc, char* argv[])
                 attemptConnect = false;
         } while(attemptConnect);
 
-        Packet packet1;
-        packet1 << ("/username " + username);
-        sck.send(packet1);
-
         Thread guiThread(loop);
         guiThread.launch();
         Thread networkThread(network);
         networkThread.launch();
+
+        Packet packet1;
+        packet1 << sf::String("/username " + username);
+        sck.send(packet1);
 
         guiThread.wait();
     }
