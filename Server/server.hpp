@@ -3,7 +3,7 @@
 
 #include <map>
 #include <Server/client.hpp>
-#include <Server/command.hpp>
+#include <Utility/command.hpp>
 #include <SFML/Network.hpp>
 
 class Server

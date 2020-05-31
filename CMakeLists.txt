@@ -47,6 +47,7 @@ cg_find_sfml()
 
 add_subdirectory(Client)
 add_subdirectory(Server)
+add_subdirectory(Utility)
 
 # copy all resources
 file(COPY data/ DESTINATION "${CMAKE_BINARY_DIR}")

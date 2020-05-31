@@ -1,5 +1,5 @@
 #include "config.hpp"
-#include "command.hpp"
+#include <Utility/command.hpp>
 
 using namespace sf;
 using namespace std;

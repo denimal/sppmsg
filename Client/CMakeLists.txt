@@ -8,4 +8,5 @@ set(SOURCES
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 add_executable(SppMsgClient "${SOURCES}")
+target_link_libraries(SppMsgClient SppMsgUtility)
 cg_link_common(SppMsgClient)
